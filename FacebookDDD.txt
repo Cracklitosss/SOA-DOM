@@ -1,0 +1,903 @@
+# Modelado de Facebook utilizando Domain-Driven Design
+
+## Resumen ejecutivo
+
+El objetivo de este modelado es aplicar los principios de Domain-Driven Design (DDD) a la plataforma Facebook para comprender su estructura interna, identificar sus dominios principales y analizar cómo estos se relacionan entre sí. Facebook es una plataforma de redes sociales compleja que integra múltiples funcionalidades: perfiles de usuario, feed de noticias, mensajería, marketplace, grupos, eventos, publicidad y más.
+
+Este análisis busca descomponer la arquitectura de Facebook en contextos acotados (bounded contexts) bien definidos, establecer un lenguaje ubicuo claro para cada dominio, e identificar las entidades, agregados, objetos de valor y servicios que conforman esta plataforma. Los beneficios esperados incluyen una comprensión profunda de la arquitectura orientada a servicios que sustenta una plataforma de esta magnitud, facilitando decisiones de diseño en sistemas similares y permitiendo visualizar cómo los diferentes componentes se integran manteniendo autonomía.
+
+## Contexto del dominio
+
+### Descripción general del negocio
+
+Facebook es una plataforma de redes sociales fundada en 2004 que permite a usuarios conectarse con amigos, familiares y conocidos, compartir contenido (texto, fotos, videos), interactuar con publicaciones a través de reacciones y comentarios, comunicarse mediante un sistema de mensajería, participar en grupos y eventos, comprar y vender productos a través de marketplace, y consumir contenido personalizado mediante algoritmos de recomendación. Facebook también ofrece herramientas para negocios como páginas comerciales y publicidad dirigida.
+
+La plataforma opera bajo un modelo de negocio principalmente basado en publicidad, donde recopila datos de los usuarios para ofrecer anuncios altamente segmentados. Cuenta con más de 2.9 mil millones de usuarios activos mensuales a nivel global, convirtiéndola en una de las redes sociales más grandes del mundo.
+
+### Problemas actuales
+
+- Complejidad creciente debido a la constante adición de nuevas funcionalidades
+- Desafíos de privacidad y seguridad de datos de los usuarios
+- Alta demanda de procesamiento en tiempo real para feed de noticias e interacciones
+- Necesidad de escalar horizontalmente para atender a millones de usuarios simultáneos
+- Consistencia de datos entre múltiples servicios y bases de datos distribuidas
+- Personalización del contenido manteniendo la eficiencia del sistema
+
+### Oportunidades de mejora
+
+- Mejor segregación de responsabilidades entre dominios para facilitar el mantenimiento
+- Implementación de patrones de comunicación asíncrona entre servicios mediante eventos
+- Optimización de agregados para mejorar la consistencia y rendimiento
+- Definición clara de límites entre contextos para permitir evolución independiente
+- Refinamiento del lenguaje ubicuo para mejorar la comunicación entre equipos técnicos y de negocio
+- Potenciar la modularidad para permitir la innovación continua
+
+## Ubiquitous Language
+
+| Término | Definición | Comentarios |
+|---------|------------|-------------|
+| Usuario | Persona que tiene una cuenta en la plataforma y puede interactuar con ella. | Entidad central del sistema alrededor de la cual giran la mayoría de las funcionalidades. |
+| Perfil | Representación digital de un usuario que incluye su información personal, fotos y actividad. | Actúa como la identidad pública del usuario en la plataforma. |
+| Amigo | Relación bidireccional entre dos usuarios que han aceptado conectarse. | Base del grafo social que sustenta la plataforma. |
+| Feed de Noticias | Flujo de contenido personalizado que muestra publicaciones de amigos y páginas seguidas. | Implementa algoritmos complejos de clasificación para determinar relevancia. |
+| Publicación | Contenido creado por un usuario o página que puede incluir texto, imágenes, videos o enlaces. | Unidad básica de contenido que puede recibir interacciones. |
+| Comentario | Respuesta textual a una publicación u otro comentario. | Permite conversaciones anidadas. |
+| Reacción | Respuesta rápida a una publicación o comentario (me gusta, me encanta, me divierte, etc.). | Forma de interacción de bajo esfuerzo que proporciona retroalimentación. |
+| Mensaje | Comunicación privada entre usuarios o grupos de usuarios. | Base del sistema de mensajería instantánea. |
+| Conversación | Secuencia de mensajes intercambiados entre dos o más usuarios. | Puede incluir diferentes tipos de contenido multimedia. |
+| Grupo | Comunidad de usuarios que comparten intereses comunes. | Puede ser público, cerrado o privado con diferentes niveles de acceso. |
+| Evento | Actividad programada con fecha, hora y ubicación, a la que los usuarios pueden asistir. | Incluye información sobre asistencia y permite discusiones. |
+| Página | Perfil público para negocios, organizaciones, figuras públicas o causas. | Herramienta de marketing y comunicación para entidades. |
+| Anuncio | Contenido promocional pagado dirigido a usuarios específicos. | Principal fuente de ingresos de la plataforma. |
+| Marketplace | Espacio donde los usuarios pueden comprar y vender productos. | Facilita transacciones locales entre usuarios. |
+| Privacidad | Configuraciones que determinan quién puede ver el contenido de un usuario. | Aspecto crítico que afecta la experiencia del usuario y la seguridad. |
+| Notificación | Alerta sobre actividades relevantes para el usuario. | Mecanismo para mantener el compromiso con la plataforma. |
+| Algoritmo | Sistema que determina qué contenido se muestra en el feed de noticias. | Evoluciona constantemente basado en el comportamiento del usuario. |
+| Publicación compartida | Contenido que un usuario redistribuye desde otra fuente. | Mecanismo para la viralización de contenido. |
+| Historia | Contenido efímero que desaparece después de 24 horas. | Formato para compartir momentos cotidianos. |
+| Etiqueta | Referencia a un usuario en una publicación, comentario o foto. | Genera notificaciones y crea conexiones entre contenidos. |
+
+## Subdominios y Bounded Contexts
+
+### Subdominios
+
+Facebook puede dividirse en tres tipos de subdominios según su criticidad para el negocio:
+
+#### Subdominios Core (Núcleo)
+
+Estos representan las funcionalidades esenciales que definen Facebook y proporcionan su ventaja competitiva:
+
+- **Grafo Social**: Gestión de relaciones entre usuarios (amistades, seguimientos)
+- **Feed de Noticias**: Algoritmo de contenido personalizado
+- **Engagement**: Sistema de interacciones (comentarios, reacciones, compartir)
+- **Publicidad**: Sistema de anuncios y monetización
+
+#### Subdominios de Soporte
+
+Complementan y habilitan los subdominios core, siendo importantes pero no la propuesta de valor principal:
+
+- **Mensajería**: Comunicación privada entre usuarios
+- **Grupos y Eventos**: Organización de comunidades y actividades
+- **Notificaciones**: Sistema de alertas y comunicaciones
+- **Autenticación y Perfil**: Gestión de identidad y acceso
+
+#### Subdominios Genéricos
+
+Necesarios para la operación pero no diferenciadores, podrían externalizarse:
+
+- **Gestión de Archivos**: Almacenamiento de fotos y videos
+- **Análisis y Métricas**: Recopilación de estadísticas de uso
+- **Localización**: Traducción y adaptación regional
+- **Facturación**: Procesamiento de pagos (para anuncios y marketplace)
+
+### Bounded Contexts
+
+Los principales contextos delimitados identificados en Facebook son:
+
+1. **Perfil de Usuario**: Gestión de información personal, privacidad y configuraciones
+2. **Feed de Noticias**: Presentación y ranking de contenido
+3. **Mensajería**: Comunicación en tiempo real entre usuarios
+4. **Marketplace**: Plataforma de compra/venta entre usuarios
+5. **Sistema de Relaciones Sociales**: Gestión de conexiones entre usuarios
+6. **Notificaciones**: Alertas sobre actividades relevantes
+7. **Grupos y Eventos**: Gestión de comunidades y actividades programadas
+8. **Interacciones Sociales**: Reacciones, comentarios y compartir contenido
+9. **Páginas Comerciales y Publicidad**: Presencia de marcas y anuncios
+
+### Diagrama de Subdominios y Bounded Contexts
+
+```mermaid
+graph TD
+    subgraph "Subdominios Core"
+        GS[Grafo Social]
+        FN[Feed de Noticias]
+        EN[Engagement]
+        PU[Publicidad]
+    end
+    
+    subgraph "Subdominios de Soporte"
+        ME[Mensajería]
+        GE[Grupos y Eventos]
+        NO[Notificaciones]
+        AP[Autenticación y Perfil]
+    end
+    
+    subgraph "Subdominios Genéricos"
+        GA[Gestión de Archivos]
+        AM[Análisis y Métricas]
+        LO[Localización]
+        FA[Facturación]
+    end
+    
+    classDef core fill:#f9d5e5,stroke:#333;
+    classDef soporte fill:#d5e5f9,stroke:#333;
+    classDef generico fill:#e5f9d5,stroke:#333;
+    
+    class GS,FN,EN,PU core;
+    class ME,GE,NO,AP soporte;
+    class GA,AM,LO,FA generico;
+```
+
+### Mapa de Contexto
+
+El siguiente diagrama muestra las relaciones entre los diferentes bounded contexts de Facebook:
+
+```mermaid
+graph TD
+    PU[Perfil de Usuario] --> FN[Feed de Noticias]
+    PU --> ME[Mensajería]
+    PU --> MK[Marketplace]
+    PU --> RS[Sistema de Relaciones Sociales]
+    PU --> NO[Notificaciones]
+    PU --> GE[Grupos y Eventos]
+    PU --> PP[Páginas Comerciales y Publicidad]
+    FN --> ME
+    FN --> IS[Interacciones Sociales]
+    MK --> PU
+    GE --> FN
+    NO --> ME
+    PP --> MK
+    
+    classDef perfil fill:#d5e5f9,stroke:#333;
+    classDef feed fill:#f9e5d5,stroke:#333;
+    classDef mensaje fill:#d5f9e5,stroke:#333;
+    classDef market fill:#f0d5f9,stroke:#333;
+    classDef relaciones fill:#e5d5f9,stroke:#333;
+    classDef notificaciones fill:#f9f0d5,stroke:#333;
+    classDef grupos fill:#d5f0f9,stroke:#333;
+    classDef interacciones fill:#fad5e5,stroke:#333;
+    classDef paginas fill:#dff9d5,stroke:#333;
+    
+    class PU perfil
+    class FN feed
+    class ME mensaje
+    class MK market
+    class RS relaciones
+    class NO notificaciones
+    class GE grupos
+    class IS interacciones
+    class PP paginas
+    
+    linkStyle 0,1,2,3,4,5,6 stroke:#0077b6,stroke-width:2;
+    linkStyle 7,8 stroke:#00b4d8,stroke-width:1.5;
+    linkStyle 9,10,11,12 stroke:#90e0ef,stroke-width:1;
+```
+
+#### Tipos de Relaciones en el Mapa de Contexto
+
+- **Partnership (Asociación)**: Perfil de Usuario y Sistema de Relaciones Sociales trabajan en estrecha colaboración
+- **Customer-Supplier (Cliente-Proveedor)**: Feed de Noticias consume datos de Perfil de Usuario
+- **Conformist (Conformista)**: Notificaciones acepta el modelo del contexto de Mensajería
+- **Anticorruption Layer (Capa Anticorrupción)**: Marketplace implementa una capa para traducir su modelo al sistema de Páginas Comerciales
+- **Open Host Service (Servicio Anfitrión Abierto)**: Perfil de Usuario proporciona una API bien definida
+- **Published Language (Lenguaje Publicado)**: Sistema de Relaciones Sociales define un formato común para intercambiar datos con otros contextos 
+
+## Historias de usuario
+
+Las historias de usuario representan las necesidades y objetivos de los diferentes tipos de usuarios que interactúan con la plataforma. A continuación, se presentan las principales historias de usuario organizadas por bounded context.
+
+### Perfil de Usuario
+
+1. **Como usuario**, quiero **crear y personalizar mi perfil**, para mostrar información relevante sobre mí a mis conexiones.
+   - Criterios de aceptación:
+     - Poder agregar foto de perfil y portada
+     - Editar información personal (nombre, fecha de nacimiento, lugar de residencia)
+     - Configurar la visibilidad de mi información personal
+
+2. **Como usuario**, quiero **gestionar mi configuración de privacidad**, para controlar quién puede ver mi contenido.
+   - Criterios de aceptación:
+     - Establecer diferentes niveles de privacidad (público, amigos, personalizado)
+     - Revisar y aprobar etiquetas antes de que aparezcan en mi perfil
+     - Bloquear usuarios no deseados
+
+### Feed de Noticias
+
+3. **Como usuario**, quiero **ver publicaciones relevantes en mi feed de noticias**, para mantenerme actualizado sobre mis amigos y páginas que sigo.
+   - Criterios de aceptación:
+     - Ver contenido reciente y relevante de mis conexiones
+     - Poder alternar entre feed cronológico y algoritmo de relevancia
+     - Ocultar o silenciar contenido que no me interesa
+
+4. **Como usuario**, quiero **guardar publicaciones interesantes**, para poder acceder a ellas más tarde.
+   - Criterios de aceptación:
+     - Guardar publicaciones en colecciones organizadas
+     - Acceder fácilmente a las publicaciones guardadas
+     - Compartir colecciones con amigos si lo deseo
+
+### Mensajería
+
+5. **Como usuario**, quiero **enviar mensajes privados a mis amigos**, para comunicarme de forma directa y personal.
+   - Criterios de aceptación:
+     - Enviar texto, imágenes, videos y archivos
+     - Ver cuando mis mensajes han sido leídos
+     - Realizar videollamadas desde la conversación
+
+6. **Como usuario**, quiero **crear grupos de chat**, para comunicarme con múltiples personas simultáneamente.
+   - Criterios de aceptación:
+     - Agregar y eliminar participantes
+     - Nombrar el grupo y establecer una imagen
+     - Fijar mensajes importantes
+
+### Marketplace
+
+7. **Como vendedor**, quiero **publicar un producto en Marketplace**, para ofrecer mis artículos a compradores locales.
+   - Criterios de aceptación:
+     - Subir fotos del artículo
+     - Escribir título, descripción y precio
+     - Seleccionar categoría y ubicación
+
+8. **Como comprador**, quiero **filtrar productos por ubicación y categoría**, para encontrar artículos relevantes cerca de mí.
+   - Criterios de aceptación:
+     - Establecer radio de búsqueda
+     - Filtrar por precio, condición y disponibilidad
+     - Guardar búsquedas frecuentes
+
+### Sistema de Relaciones Sociales
+
+9. **Como usuario**, quiero **enviar y recibir solicitudes de amistad**, para conectarme con personas que conozco.
+   - Criterios de aceptación:
+     - Ver sugerencias de personas que podría conocer
+     - Aceptar o rechazar solicitudes entrantes
+     - Cancelar solicitudes enviadas
+
+10. **Como usuario**, quiero **gestionar mi lista de amigos**, para mantener organizada mi red social.
+    - Criterios de aceptación:
+      - Crear listas personalizadas (amigos cercanos, conocidos, etc.)
+      - Dejar de seguir a personas sin eliminarlas como amigos
+      - Ver amigos en común con otros usuarios
+
+### Grupos y Eventos
+
+11. **Como usuario**, quiero **crear y administrar grupos**, para conectar personas con intereses comunes.
+    - Criterios de aceptación:
+      - Configurar privacidad del grupo (público, cerrado, secreto)
+      - Aprobar o rechazar solicitudes de membresía
+      - Establecer reglas y moderadores
+
+12. **Como usuario**, quiero **crear eventos y gestionar invitaciones**, para organizar actividades con mis conexiones.
+    - Criterios de aceptación:
+      - Establecer fecha, hora y ubicación
+      - Invitar amigos y permitir que inviten a otros
+      - Compartir actualizaciones con los asistentes
+
+### Páginas Comerciales y Publicidad
+
+13. **Como administrador de página**, quiero **programar publicaciones promocionadas**, para mantener mi presencia sin estar conectado todo el tiempo.
+    - Criterios de aceptación:
+      - Configurar fecha y hora de publicación
+      - Seleccionar audiencia objetivo
+      - Establecer presupuesto y duración
+
+14. **Como anunciante**, quiero **crear campañas publicitarias segmentadas**, para llegar a clientes potenciales.
+    - Criterios de aceptación:
+      - Definir objetivos de campaña (tráfico, conversiones, reconocimiento)
+      - Seleccionar demografía, intereses y comportamientos del público
+      - Monitorear rendimiento y ajustar parámetros
+
+### Interacciones Sociales
+
+15. **Como usuario**, quiero **reaccionar y comentar publicaciones**, para expresar mi opinión sobre el contenido.
+    - Criterios de aceptación:
+      - Utilizar diferentes tipos de reacciones (me gusta, me encanta, etc.)
+      - Comentar con texto, imágenes o GIFs
+      - Responder a comentarios de otros usuarios
+
+16. **Como creador de contenido**, quiero **ver estadísticas de mis publicaciones**, para entender el alcance e impacto de mi contenido.
+    - Criterios de aceptación:
+      - Ver número de impresiones, interacciones y compartidos
+      - Analizar demografía de las personas que interactúan
+      - Comparar rendimiento con publicaciones anteriores 
+
+## Modelo del dominio
+
+El modelo de dominio de Facebook se compone de múltiples entidades, objetos de valor, agregados y sus relaciones. A continuación, se presenta el modelo para cada uno de los subdominios identificados.
+
+### Perfil de Usuario y Sistema de Relaciones Sociales
+
+```mermaid
+classDiagram
+    class Usuario {
+        +UsuarioId id
+        +Nombre nombre
+        +Email correo
+        +FotoPerfil fotoPerfil
+        +FechaDeNacimiento fechaNacimiento
+        +ConfiguracionPrivacidad privacidad
+        +agregarAmigo(UsuarioId)
+        +eliminarAmigo(UsuarioId)
+        +actualizarPerfil(DatosPerfil)
+        +configurarPrivacidad(ConfiguracionPrivacidad)
+    }
+
+    class ConfiguracionPrivacidad {
+        +boolean perfilPublico
+        +boolean mostrarFechaNacimiento
+        +boolean recibirSolicitudes
+        +NivelAcceso postAcceso
+        +NivelAcceso fotoAcceso
+    }
+
+    class Relacion {
+        +UsuarioId usuario1Id
+        +UsuarioId usuario2Id
+        +TipoRelacion tipo
+        +FechaCreacion fechaCreacion
+        +aceptarSolicitud()
+        +rechazarSolicitud()
+        +bloquearUsuario()
+    }
+
+    class SolicitudAmistad {
+        +UsuarioId solicitanteId
+        +UsuarioId receptorId
+        +FechaCreacion fechaCreacion
+        +EstadoSolicitud estado
+        +aceptar()
+        +rechazar()
+        +cancelar()
+    }
+
+    class ListaPersonalizada {
+        +ListaId id
+        +UsuarioId propietarioId
+        +Nombre nombre
+        +UsuarioId[] miembros
+        +agregarMiembro(UsuarioId)
+        +removerMiembro(UsuarioId)
+    }
+
+    Usuario "1" --> "1" ConfiguracionPrivacidad : tiene
+    Usuario "1" --> "*" Relacion : mantiene
+    Relacion "1" --> "0..1" SolicitudAmistad : se inicia con
+    Usuario "1" --> "*" ListaPersonalizada : organiza
+```
+
+**Objetos de Valor:**
+- **UsuarioId**: Identificador único del usuario
+- **Nombre**: Nombre completo del usuario
+- **Email**: Correo electrónico validado
+- **FotoPerfil**: URL o referencia a la imagen de perfil
+- **FechaDeNacimiento**: Fecha de nacimiento con validaciones
+- **NivelAcceso**: Enumeración (Público, Amigos, SoloYo, Personalizado)
+- **TipoRelacion**: Enumeración (Amigo, Seguidor, Bloqueado)
+- **EstadoSolicitud**: Enumeración (Pendiente, Aceptada, Rechazada)
+
+**Agregados:**
+1. **Agregado Usuario**
+   - Raíz: Usuario
+   - Entidades: ConfiguracionPrivacidad
+   - Invariantes: Email único, nombre válido
+
+2. **Agregado Relación**
+   - Raíz: Relacion
+   - Entidades: SolicitudAmistad
+   - Invariantes: No puede existir relación duplicada entre los mismos usuarios
+
+### Feed de Noticias e Interacciones Sociales
+
+```mermaid
+classDiagram
+    class Publicacion {
+        +PublicacionId id
+        +UsuarioId autorId
+        +Contenido contenido
+        +Timestamp fechaCreacion
+        +Visibilidad visibilidad
+        +Ubicacion ubicacion
+        +crearComentario(Texto)
+        +agregarReaccion(TipoReaccion)
+        +compartir(UsuarioId)
+    }
+
+    class Comentario {
+        +ComentarioId id
+        +UsuarioId autorId
+        +Texto texto
+        +Timestamp fechaCreacion
+        +responder(Texto)
+        +agregarReaccion(TipoReaccion)
+    }
+
+    class Reaccion {
+        +ReaccionId id
+        +UsuarioId autorId
+        +TipoReaccion tipo
+        +Timestamp fechaCreacion
+    }
+
+    class Compartido {
+        +CompartidoId id
+        +UsuarioId autorId
+        +PublicacionId publicacionOriginalId
+        +Texto textoAdicional
+        +Timestamp fechaCreacion
+    }
+
+    class AlgoritmoFeed {
+        +UsuarioId usuarioId
+        +calcularRelevancia(Publicacion)
+        +filtrarContenido(Publicacion[])
+        +organizarFeed(Publicacion[])
+    }
+
+    Publicacion "1" --> "*" Comentario : tiene
+    Publicacion "1" --> "*" Reaccion : recibe
+    Comentario "1" --> "*" Reaccion : recibe
+    Publicacion "1" --> "*" Compartido : es compartida como
+    AlgoritmoFeed "1" --> "*" Publicacion : prioriza
+```
+
+**Objetos de Valor:**
+- **PublicacionId**: Identificador único de publicación
+- **Contenido**: Puede contener texto, imágenes, videos (polimórfico)
+- **Timestamp**: Marca de tiempo con precisión de milisegundos
+- **Visibilidad**: Enumeración (Público, Amigos, Personalizado)
+- **TipoReaccion**: Enumeración (MeGusta, MeEncanta, MeDivierte, MeAsombra, MeEntristece, MeEnoja)
+- **Texto**: Contenido textual con validaciones
+
+**Agregados:**
+1. **Agregado Publicación**
+   - Raíz: Publicacion
+   - Entidades: Comentario, Reaccion, Compartido
+   - Invariantes: Una publicación debe tener autor, fecha y contenido
+
+2. **Agregado Feed**
+   - Raíz: AlgoritmoFeed
+   - Invariantes: El feed debe ser personalizado para cada usuario
+
+### Mensajería
+
+```mermaid
+classDiagram
+    class Conversacion {
+        +ConversacionId id
+        +UsuarioId[] participantes
+        +Timestamp fechaCreacion
+        +boolean esGrupal
+        +Nombre nombreGrupo
+        +enviarMensaje(Contenido)
+        +agregarParticipante(UsuarioId)
+        +removerParticipante(UsuarioId)
+    }
+
+    class Mensaje {
+        +MensajeId id
+        +UsuarioId remitente
+        +Contenido contenido
+        +Timestamp fechaEnvio
+        +EstadoMensaje estado
+        +marcarComoLeido()
+        +eliminar()
+        +reaccionar(TipoReaccion)
+    }
+
+    class EstadoLectura {
+        +UsuarioId usuarioId
+        +Timestamp fechaLectura
+        +boolean leido
+    }
+
+    class LlamadaMensajeria {
+        +LlamadaId id
+        +ConversacionId conversacionId
+        +UsuarioId iniciador
+        +UsuarioId[] participantes
+        +Timestamp inicio
+        +Timestamp fin
+        +TipoLlamada tipo
+        +iniciar()
+        +finalizar()
+        +agregarParticipante(UsuarioId)
+    }
+
+    Conversacion "1" --> "*" Mensaje : contiene
+    Mensaje "1" --> "*" EstadoLectura : tiene
+    Conversacion "1" --> "*" LlamadaMensajeria : permite
+```
+
+**Objetos de Valor:**
+- **ConversacionId**: Identificador único de conversación
+- **MensajeId**: Identificador único de mensaje
+- **EstadoMensaje**: Enumeración (Enviado, Entregado, Leído, Fallido)
+- **TipoLlamada**: Enumeración (Audio, Video)
+- **LlamadaId**: Identificador único de llamada
+
+**Agregados:**
+1. **Agregado Conversación**
+   - Raíz: Conversacion
+   - Entidades: Mensaje, EstadoLectura, LlamadaMensajeria
+   - Invariantes: Una conversación debe tener al menos dos participantes
+
+### Marketplace
+
+```mermaid
+classDiagram
+    class Anuncio {
+        +AnuncioId id
+        +UsuarioId vendedorId
+        +Titulo titulo
+        +Descripcion descripcion
+        +Precio precio
+        +Categoria categoria
+        +Ubicacion ubicacion
+        +EstadoAnuncio estado
+        +FechaPublicacion fechaPublicacion
+        +publicar()
+        +editar(DatosAnuncio)
+        +marcarComoVendido()
+        +eliminar()
+    }
+
+    class FotoAnuncio {
+        +FotoId id
+        +AnuncioId anuncioId
+        +URL url
+        +Orden orden
+    }
+
+    class MensajeCompraventa {
+        +MensajeId id
+        +AnuncioId anuncioId
+        +UsuarioId remitente
+        +UsuarioId destinatario
+        +Texto contenido
+        +Timestamp fechaEnvio
+        +responder(Texto)
+    }
+
+    class Oferta {
+        +OfertaId id
+        +AnuncioId anuncioId
+        +UsuarioId compradorId
+        +Precio monto
+        +EstadoOferta estado
+        +Timestamp fechaCreacion
+        +aceptar()
+        +rechazar()
+        +contraofertar(Precio)
+    }
+
+    Anuncio "1" --> "*" FotoAnuncio : tiene
+    Anuncio "1" --> "*" MensajeCompraventa : recibe
+    Anuncio "1" --> "*" Oferta : recibe
+```
+
+**Objetos de Valor:**
+- **AnuncioId**: Identificador único de anuncio
+- **Titulo**: Texto corto descriptivo con validaciones
+- **Descripcion**: Texto detallado con formato
+- **Precio**: Valor monetario con moneda
+- **Categoria**: Clasificación jerárquica (Electrónica, Vehículos, etc.)
+- **Ubicacion**: Coordenadas geográficas y/o dirección
+- **EstadoAnuncio**: Enumeración (Activo, Reservado, Vendido, Suspendido)
+- **EstadoOferta**: Enumeración (Pendiente, Aceptada, Rechazada, Caducada)
+
+**Agregados:**
+1. **Agregado Anuncio**
+   - Raíz: Anuncio
+   - Entidades: FotoAnuncio, Oferta
+   - Invariantes: Un anuncio debe tener título, precio, categoría y al menos una foto
+
+2. **Agregado Conversación de Compraventa**
+   - Raíz: MensajeCompraventa
+   - Invariantes: Debe estar asociada a un anuncio válido
+
+### Grupos y Eventos
+
+```mermaid
+classDiagram
+    class Grupo {
+        +GrupoId id
+        +Nombre nombre
+        +Descripcion descripcion
+        +UsuarioId creadorId
+        +PrivacidadGrupo privacidad
+        +FechaCreacion fechaCreacion
+        +crearPublicacion(Contenido)
+        +agregarMiembro(UsuarioId)
+        +removerMiembro(UsuarioId)
+        +promoverAdministrador(UsuarioId)
+    }
+
+    class MiembroGrupo {
+        +GrupoId grupoId
+        +UsuarioId usuarioId
+        +RolGrupo rol
+        +FechaUnion fechaUnion
+        +cambiarRol(RolGrupo)
+        +abandonarGrupo()
+    }
+
+    class PublicacionGrupo {
+        +PublicacionId id
+        +GrupoId grupoId
+        +UsuarioId autorId
+        +Contenido contenido
+        +Timestamp fechaCreacion
+        +aprobar()
+        +rechazar()
+        +reportar()
+    }
+
+    class Evento {
+        +EventoId id
+        +Nombre nombre
+        +Descripcion descripcion
+        +UsuarioId creadorId
+        +Ubicacion ubicacion
+        +FechaInicio fechaInicio
+        +FechaFin fechaFin
+        +PrivacidadEvento privacidad
+        +crearPublicacion(Contenido)
+        +invitarUsuario(UsuarioId)
+        +actualizarDetalles(DetallesEvento)
+    }
+
+    class AsistenteEvento {
+        +EventoId eventoId
+        +UsuarioId usuarioId
+        +EstadoAsistencia estado
+        +cambiarEstado(EstadoAsistencia)
+    }
+
+    Grupo "1" --> "*" MiembroGrupo : tiene
+    Grupo "1" --> "*" PublicacionGrupo : contiene
+    Grupo "1" --> "*" Evento : organiza
+    Evento "1" --> "*" AsistenteEvento : tiene
+```
+
+**Objetos de Valor:**
+- **GrupoId**: Identificador único de grupo
+- **EventoId**: Identificador único de evento
+- **PrivacidadGrupo**: Enumeración (Público, Cerrado, Secreto)
+- **RolGrupo**: Enumeración (Miembro, Moderador, Administrador)
+- **PrivacidadEvento**: Enumeración (Público, Privado, Solo Invitados)
+- **EstadoAsistencia**: Enumeración (Asistirá, Interesado, No Asistirá, Sin Respuesta)
+
+**Agregados:**
+1. **Agregado Grupo**
+   - Raíz: Grupo
+   - Entidades: MiembroGrupo, PublicacionGrupo
+   - Invariantes: Un grupo debe tener al menos un administrador
+
+2. **Agregado Evento**
+   - Raíz: Evento
+   - Entidades: AsistenteEvento
+   - Invariantes: Un evento debe tener fecha de inicio y creador
+
+### Páginas Comerciales y Publicidad
+
+```mermaid
+classDiagram
+    class Pagina {
+        +PaginaId id
+        +Nombre nombre
+        +Descripcion descripcion
+        +Categoria categoria
+        +URL username
+        +crearPublicacion(Contenido)
+        +agregarAdministrador(UsuarioId, RolPagina)
+        +actualizarInformacion(InformacionPagina)
+    }
+
+    class AdministradorPagina {
+        +PaginaId paginaId
+        +UsuarioId usuarioId
+        +RolPagina rol
+        +FechaAsignacion fechaAsignacion
+        +cambiarRol(RolPagina)
+        +remover()
+    }
+
+    class PublicacionPagina {
+        +PublicacionId id
+        +PaginaId paginaId
+        +UsuarioId autorId
+        +Contenido contenido
+        +Timestamp fechaCreacion
+        +EstadoProgramacion estadoProgramacion
+        +promocionar(ConfiguracionAnuncio)
+    }
+
+    class CampañaPublicitaria {
+        +CampañaId id
+        +PaginaId paginaId
+        +Nombre nombre
+        +ObjetivoCampaña objetivo
+        +Presupuesto presupuesto
+        +FechaInicio fechaInicio
+        +FechaFin fechaFin
+        +EstadoCampaña estado
+        +iniciar()
+        +pausar()
+        +finalizar()
+        +ajustarPresupuesto(Presupuesto)
+    }
+
+    class Anuncio {
+        +AnuncioId id
+        +CampañaId campañaId
+        +Contenido contenido
+        +AudienciaObjetivo audiencia
+        +Métricas métricas
+        +editar(ContenidoAnuncio)
+        +duplicar()
+    }
+
+    Pagina "1" --> "*" AdministradorPagina : tiene
+    Pagina "1" --> "*" PublicacionPagina : contiene
+    Pagina "1" --> "*" CampañaPublicitaria : gestiona
+    CampañaPublicitaria "1" --> "*" Anuncio : incluye
+```
+
+**Objetos de Valor:**
+- **PaginaId**: Identificador único de página
+- **CampañaId**: Identificador único de campaña publicitaria
+- **RolPagina**: Enumeración (Administrador, Editor, Anunciante, Analista)
+- **ObjetivoCampaña**: Enumeración (Reconocimiento, Consideración, Conversión)
+- **Presupuesto**: Valor monetario con límites diarios/totales
+- **EstadoCampaña**: Enumeración (Activa, Pausada, Finalizada, En Revisión)
+- **AudienciaObjetivo**: Conjunto de criterios demográficos y de intereses
+- **Métricas**: Estadísticas de rendimiento (impresiones, clics, conversiones)
+
+**Agregados:**
+1. **Agregado Página**
+   - Raíz: Pagina
+   - Entidades: AdministradorPagina, PublicacionPagina
+   - Invariantes: Una página debe tener al menos un administrador
+
+2. **Agregado Campaña Publicitaria**
+   - Raíz: CampañaPublicitaria
+   - Entidades: Anuncio
+   - Invariantes: Una campaña debe tener objetivo, presupuesto y fechas definidas
+
+### Notificaciones
+
+```mermaid
+classDiagram
+    class Notificacion {
+        +NotificacionId id
+        +UsuarioId destinatarioId
+        +TipoNotificacion tipo
+        +Contenido contenido
+        +Referencia referencia
+        +Timestamp fechaCreacion
+        +boolean leida
+        +marcarComoLeida()
+        +eliminar()
+    }
+
+    class PreferenciasNotificacion {
+        +UsuarioId usuarioId
+        +boolean notificacionesApp
+        +boolean notificacionesEmail
+        +boolean notificacionesPush
+        +MapaPreferencias preferencias
+        +actualizarPreferencia(TipoNotificacion, CanalNotificacion, boolean)
+    }
+
+    class CanalEntrega {
+        +NotificacionId notificacionId
+        +TipoCanal canal
+        +EstadoEntrega estado
+        +Timestamp fechaEntrega
+        +reintentar()
+    }
+
+    Notificacion "1" --> "*" CanalEntrega : se entrega por
+    PreferenciasNotificacion "1" --> "*" Notificacion : filtra
+```
+
+**Objetos de Valor:**
+- **NotificacionId**: Identificador único de notificación
+- **TipoNotificacion**: Enumeración (NuevaAmistad, Comentario, Reaccion, Mensaje, etc.)
+- **Contenido**: Texto y metadatos para mostrar la notificación
+- **Referencia**: Identificador del objeto relacionado (publicación, comentario, etc.)
+- **TipoCanal**: Enumeración (App, Email, Push, SMS)
+- **EstadoEntrega**: Enumeración (Pendiente, Enviado, Fallido)
+- **MapaPreferencias**: Mapa que asocia tipos de notificación con canales habilitados
+
+**Agregados:**
+1. **Agregado Notificación**
+   - Raíz: Notificacion
+   - Entidades: CanalEntrega
+   - Invariantes: Una notificación debe tener destinatario, tipo y contenido
+
+2. **Agregado Preferencias de Notificación**
+   - Raíz: PreferenciasNotificacion
+   - Invariantes: Cada usuario debe tener una única configuración de preferencias
+
+### Relaciones Clave entre Agregados
+
+1. **Usuario - Publicación**: Un usuario crea múltiples publicaciones, comentarios y reacciones.
+2. **Usuario - Conversación**: Un usuario participa en múltiples conversaciones y envía mensajes.
+3. **Usuario - Grupo/Evento**: Un usuario puede ser miembro de varios grupos y asistir a eventos.
+4. **Publicación - Notificación**: Las interacciones con publicaciones generan notificaciones.
+5. **Página - Campaña Publicitaria**: Una página puede gestionar múltiples campañas publicitarias.
+6. **Anuncio Marketplace - Usuario**: Los anuncios de Marketplace están vinculados a un vendedor.
+7. **Feed - Publicación**: El algoritmo de feed selecciona y prioriza publicaciones para cada usuario. 
+
+## Servicios del Dominio y de Aplicación
+
+Los servicios representan operaciones que no pertenecen naturalmente a una entidad específica, sino que coordinan múltiples agregados o realizan procesos complejos de negocio.
+
+### Servicios de Dominio
+
+| Nombre | Responsabilidad | Inputs | Outputs |
+|--------|-----------------|--------|---------|
+| **GrafoSocialService** | Gestionar la red de conexiones, detectar amigos en común y sugerir nuevas conexiones | UsuarioId, filtros de búsqueda | Sugerencias de amistad, grado de conexión |
+| **AlgoritmoFeedService** | Seleccionar y ordenar el contenido para el feed de noticias | UsuarioId, preferencias, historial de interacción | Lista ordenada de publicaciones relevantes |
+| **NotificacionService** | Generar y distribuir notificaciones basadas en eventos | Evento del dominio, preferencias de usuario | Notificaciones personalizadas |
+| **BúsquedaUnificadaService** | Buscar en múltiples contextos (personas, grupos, eventos, etc.) | Texto de búsqueda, filtros, contexto | Resultados agrupados por categoría |
+| **RecomendaciónContenidoService** | Sugerir contenido relevante basado en intereses | UsuarioId, comportamiento histórico | Contenido recomendado |
+| **ModeraciónContenidoService** | Evaluar contenido según las políticas de la plataforma | Contenido a evaluar | Decisión de moderación (aprobar/rechazar/revisar) |
+| **AutenticaciónService** | Verificar identidad y gestionar sesiones | Credenciales, dispositivo, ubicación | Token de sesión, estado de autenticación |
+| **AnálisisInteracciónService** | Analizar patrones de interacción para mejorar recomendaciones | Historial de interacciones | Perfiles de comportamiento, insights |
+
+### Servicios de Aplicación
+
+| Nombre | Responsabilidad | Inputs | Outputs |
+|--------|-----------------|--------|---------|
+| **RegistroUsuarioAppService** | Coordinar el proceso de registro de nuevos usuarios | Datos de registro, verificaciones | Usuario creado, perfil inicial |
+| **PublicaciónContenidoAppService** | Gestionar la creación y distribución de publicaciones | Contenido, configuración de privacidad | Publicación creada, distribución en feed |
+| **MensajeríaAppService** | Coordinar envío y recepción de mensajes entre usuarios | Mensaje, destinatarios, adjuntos | Entrega de mensaje, notificaciones |
+| **BúsquedaMarketplaceAppService** | Buscar productos según criterios de usuario | Términos de búsqueda, filtros, ubicación | Listado de productos filtrados |
+| **GestiónGruposAppService** | Administrar operaciones de grupos (crear, unirse, publicar) | Comando de grupo, datos relacionados | Actualización de grupo, notificaciones |
+| **GestiónEventosAppService** | Coordinar la creación y gestión de eventos | Detalles de evento, invitados | Evento creado, invitaciones enviadas |
+| **AdministraciónPáginasAppService** | Gestionar páginas comerciales y su contenido | Comandos de administración de página | Actualización de página, análisis |
+| **CampañaPublicitariaAppService** | Orquestar la creación y ejecución de campañas publicitarias | Configuración de campaña, presupuesto | Campaña activa, métricas de rendimiento |
+| **GestiónNotificacionesAppService** | Administrar preferencias y entrega de notificaciones | Preferencias de usuario, canales | Configuración actualizada |
+| **ReportesAnalíticosAppService** | Generar informes de rendimiento para publicaciones y páginas | Parámetros de informe, periodo | Estadísticas, gráficos, tendencias |
+
+## Eventos del Dominio
+
+Los eventos del dominio representan hechos significativos que han ocurrido dentro del sistema y que pueden desencadenar acciones en otros contextos.
+
+| Evento | Contexto | Descripción | Publicado a |
+|--------|----------|-------------|-------------|
+| **UsuarioRegistrado** | Perfil de Usuario | Se ha completado el registro de un nuevo usuario | Sistema de Relaciones Sociales, Notificaciones |
+| **PerfilActualizado** | Perfil de Usuario | Un usuario ha modificado información relevante de su perfil | Feed de Noticias, Notificaciones |
+| **SolicitudAmistadEnviada** | Sistema de Relaciones Sociales | Un usuario ha enviado una solicitud de amistad a otro | Notificaciones, Recomendaciones |
+| **SolicitudAmistadAceptada** | Sistema de Relaciones Sociales | Un usuario ha aceptado una solicitud de amistad | Feed de Noticias, Notificaciones, Recomendaciones |
+| **PublicaciónCreada** | Feed de Noticias | Un usuario ha creado una nueva publicación | Algoritmo de Feed, Notificaciones, Análisis |
+| **ComentarioAgregado** | Interacciones Sociales | Un usuario ha comentado en una publicación | Notificaciones, Feed de Noticias, Análisis |
+| **ReacciónRegistrada** | Interacciones Sociales | Un usuario ha reaccionado a una publicación o comentario | Notificaciones, Feed de Noticias, Análisis |
+| **PublicaciónCompartida** | Interacciones Sociales | Un usuario ha compartido una publicación existente | Feed de Noticias, Notificaciones, Análisis |
+| **MensajeEnviado** | Mensajería | Un mensaje ha sido enviado a un destinatario | Notificaciones, Estado de Mensajes |
+| **MensajeLeído** | Mensajería | Un mensaje ha sido marcado como leído por el destinatario | Estado de Mensajes |
+| **GrupoCreado** | Grupos y Eventos | Se ha creado un nuevo grupo | Feed de Noticias, Recomendaciones |
+| **UsuarioUnidoAGrupo** | Grupos y Eventos | Un usuario se ha unido a un grupo | Feed de Noticias, Notificaciones, Recomendaciones |
+| **EventoCreado** | Grupos y Eventos | Se ha creado un nuevo evento | Feed de Noticias, Recomendaciones |
+| **RespuestaEventoActualizada** | Grupos y Eventos | Un usuario ha actualizado su respuesta a un evento | Notificaciones, Feed de Noticias |
+| **AnuncioPublicado** | Marketplace | Un nuevo producto ha sido publicado en Marketplace | Recomendaciones, Feed de Noticias |
+| **OfertaEnviada** | Marketplace | Un usuario ha enviado una oferta por un producto | Notificaciones, Mensajería |
+| **ProductoVendido** | Marketplace | Un producto ha sido marcado como vendido | Marketplace, Análisis |
+| **PáginaCreada** | Páginas Comerciales | Se ha creado una nueva página comercial | Recomendaciones, Análisis |
+| **PublicaciónPáginaCreada** | Páginas Comerciales | Una página ha publicado nuevo contenido | Feed de Noticias, Análisis |
+| **CampañaPublicitariaIniciada** | Publicidad | Se ha iniciado una nueva campaña publicitaria | Segmentación de Anuncios, Análisis |
+| **AnuncioMostrado** | Publicidad | Un anuncio ha sido mostrado a un usuario | Análisis, Facturación |
+| **AnuncioClicado** | Publicidad | Un usuario ha hecho clic en un anuncio | Análisis, Facturación |
+| **ConfiguraciónPrivacidadActualizada** | Perfil de Usuario | Un usuario ha modificado su configuración de privacidad | Todos los contextos relevantes |
+| **ContenidoReportado** | Moderación de Contenido | Un usuario ha reportado contenido inapropiado | Sistema de Moderación, Análisis |
+| **SesiónIniciada** | Autenticación | Un usuario ha iniciado sesión desde un dispositivo | Sistema de Seguridad, Análisis |
+| **UbicaciónActualizada** | Perfil de Usuario | La ubicación de un usuario ha sido actualizada | Recomendaciones, Marketplace, Eventos | 
