@@ -50,7 +50,17 @@ export class GrupoController {
   // POST /grupos
   async crearGrupo(req: Request, res: Response): Promise<void> {
     try {
-      const dto: CrearGrupoDTO = req.body;
+      const usuarioId = req.headers['x-usuario-id'] as string;
+      
+      if (!usuarioId) {
+        res.status(401).json({ mensaje: 'Falta el ID de usuario en el encabezado x-usuario-id' });
+        return;
+      }
+      
+      const dto: CrearGrupoDTO = {
+        ...req.body,
+        creadorId: usuarioId
+      };
       
       const nuevoGrupo = await this.grupoUseCase.crearGrupo(dto);
       

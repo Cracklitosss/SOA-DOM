@@ -54,8 +54,8 @@ router.put('/:id/respuesta', (req, res) => {
   });
 });
 
-router.get('/proximos/:dias?', (req, res) => {
-  const dias = req.params.dias || '30';
+router.get('/proximos', (req, res) => {
+  const dias = req.query.dias?.toString() || '30';
   res.status(200).json({ mensaje: `Endpoint de obtener eventos próximos en ${dias} días (por implementar)` });
 });
 

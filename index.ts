@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import { config } from 'dotenv';
-import routes from './interfaces/rest/routes';
+import routes from './interfaces/rest/routes/index';
 
 // Cargar variables de entorno
 config();
